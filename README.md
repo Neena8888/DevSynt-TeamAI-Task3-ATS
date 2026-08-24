@@ -1,0 +1,1 @@
+# DevSynt-TeamAI-Task3-ATS
