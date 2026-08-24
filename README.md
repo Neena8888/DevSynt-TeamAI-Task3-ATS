@@ -14,7 +14,30 @@ An enterprise-grade autonomous Applicant Tracking System (ATS) orchestrated via 
 ---
 
 ## 2. Core Architecture & Workflows
-[Google Form (Webhook)] ──┐├──> [Schema Normalizer] ──> [Instant Receipt ACK Email][Candidate Inbound Email] ┘                                    │▼[Google Gemini AI Evaluator]│▼[Supabase Database Persistence](status: pending_review)│▼[Scheduled Poller & Switch Node]│┌────────────────────────────────────┼────────────────────────────────────┐▼                                    ▼                                    ▼[Strong Track (Score > 75)]          [Average Track (Score 50-75)]         [Weak Track (Score < 50)]│                                    │                                    │▼                                    ▼                                    ▼[Gmail: Assessment Invite]               [Gmail: HR Review Alert]              [Gmail: Polite Rejection]│                                    │                                    │▼                                    ▼                                    ▼[Supabase: status = 'notified']       [Supabase: status = 'manual_review']    [Supabase: status = 'notified']
+
+```text
+[Google Form (Webhook)] ──────┐
+                              ├───> [Schema Normalizer] ───> [Instant Receipt ACK Email]
+[Candidate Inbound Email] ────┘                                         │
+                                                                        ▼
+                                                           [Google Gemini AI Evaluator]
+                                                                        │
+                                                                        ▼
+                                                          [Supabase Database Persistence]
+                                                               (status: pending_review)
+                                                                        │
+                                                                        ▼
+                                                         [Scheduled Poller & Switch Node]
+                                                                        │
+                         ┌──────────────────────────────────────────────┼──────────────────────────────────────────────┐
+                         ▼                                              ▼                                              ▼
+            [Strong Track (Score > 75)]                    [Average Track (Score 50-75)]                     [Weak Track (Score < 50)]
+                         │                                              │                                              │
+                         ▼                                              ▼                                              ▼
+             [Gmail: Assessment Invite]                      [Gmail: HR Review Alert]                       [Gmail: Polite Rejection]
+                         │                                              │                                              │
+                         ▼                                              ▼                                              ▼
+           [Supabase: status = 'notified']                [Supabase: status = 'manual_review']            [Supabase: status = 'notified']
 ### Workflow 1: Intake & AI Evaluation Engine
 * **Multi-Source Ingestion:** Webhook listener for structured form entries and Gmail trigger for raw email resumes.
 * **Schema Normalization:** Maps heterogeneous fields into a single applicant standard (`name`, `email`, `role_applied`, `resume_text`).
