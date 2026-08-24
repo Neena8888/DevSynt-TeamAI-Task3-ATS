@@ -1,0 +1,289 @@
+{
+  "name": "DevSynt Hiring - Workflow 1: Intake & Screening",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "intake-webhook",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "57972c64-3dee-451b-8876-c799eecdf8e0",
+      "name": "Google Form Trigger",
+      "webhookId": "form-webhook-trigger"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "readStatus": "unread"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        192
+      ],
+      "id": "1f865847-9f2c-4540-90b4-f9705ff5a208",
+      "name": "Email Applications Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nreturn items.map(item => {\n  const data = item.json.body || item.json;\n  return {\n    json: {\n      name: data.name || data.fullName || 'Anonymous Applicant',\n      email: data.email || '',\n      phone: data.phone || null,\n      source: 'form',\n      role_applied: data.role_applied || data.role || 'Software Engineer',\n      resume_text: data.resume_text || data.cover_letter || '',\n      resume_url: data.resume_url || data.drive_link || null,\n      applied_at: new Date().toISOString(),\n      status: 'pending_review'\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "0616ebf0-838c-4ff5-a26e-e06608b08163",
+      "name": "Normalize Form Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nreturn items.map(item => {\n  const data = item.json;\n  \n  // Extract candidate name from email header if available\n  const senderName = data.from?.value?.[0]?.name || data.from?.text?.split('<')[0]?.trim() || 'Email Applicant';\n  const senderEmail = data.from?.value?.[0]?.address || data.from?.text || '';\n  \n  return {\n    json: {\n      name: senderName,\n      email: senderEmail,\n      phone: null,\n      source: 'email',\n      role_applied: data.subject?.replace(/application for/i, '')?.trim() || 'General Application',\n      resume_text: data.text || data.snippet || '',\n      resume_url: null,\n      applied_at: new Date().toISOString(),\n      status: 'pending_review'\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        192
+      ],
+      "id": "7ce87c6d-4258-45f1-92de-5f4db7abcf96",
+      "name": "Normalize Email Data"
+    },
+    {
+      "parameters": {
+        "tableId": "candidates",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "name",
+              "fieldValue": "={{ $json.name }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $json.email }}"
+            },
+            {
+              "fieldId": "phone",
+              "fieldValue": "={{ $json.phone }}"
+            },
+            {
+              "fieldId": "source",
+              "fieldValue": "={{ $json.source }}"
+            },
+            {
+              "fieldId": "role_applied",
+              "fieldValue": "={{ $json.role_applied }}"
+            },
+            {
+              "fieldId": "resume_text",
+              "fieldValue": "={{ $json.resume_text }}"
+            },
+            {
+              "fieldId": "resume_url",
+              "fieldValue": "={{ $json.resume_url }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "pending_review"
+            },
+            {
+              "fieldId": "applied_at",
+              "fieldValue": "={{ $json.applied_at }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        496,
+        64
+      ],
+      "id": "67dd215b-e1b2-4904-8288-132b4b630d54",
+      "name": "Insert Candidate"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Application Received: {{ $json.role_applied }} at DevSynt",
+        "message": "=<div style=\"font-family: Arial, sans-serif; line-height: 1.6; color: #333;\">   <h2>Application Received</h2>   <p>Dear <strong>{{ $json.name }}</strong>,</p>   <p>Thanks for applying for the <strong>{{ $json.role_applied }}</strong> position at DevSynt.</p>   <p>We have successfully received your details and our automated ATS screening engine is currently reviewing your profile against our job requirements. We will update you shortly regarding the next steps.</p>   <br>   <p>Best regards,</p>   <p><strong>DevSynt Talent Acquisition Team</strong></p> </div>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        704,
+        64
+      ],
+      "id": "35457d25-5ba9-468d-acbf-dd705df5b9f0",
+      "name": "Send Acknowledgment Email"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=YOUR_GEMINI_API_KEY",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "=json",
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "jsonBody": "={{\n  JSON.stringify({\n    contents: [\n      {\n        parts: [\n          {\n            text: `You are an expert AI ATS (Applicant Tracking System) reviewer for DevSynt.\n\nEvaluate the following candidate application against the role applied for:\n\nCandidate Name: ${$('Insert Candidate').first().json.name}\nRole Applied: ${$('Insert Candidate').first().json.role_applied}\nResume / Profile Content: ${$('Insert Candidate').first().json.resume_text}\n\nScoring Rules:\n- Score between 0 and 100 based on role relevance, technical skills, and experience.\n- Classification thresholds:\n  * 75 - 100: 'Strong'\n  * 50 - 74: 'Average'\n  * Below 50: 'Weak'\n\nReturn ONLY a valid raw JSON object without markdown fences or backticks in this exact schema:\n{\n  \"ats_score\": 85,\n  \"classification\": \"Strong\",\n  \"evaluation_summary\": \"Candidate exhibits strong alignment with required technical proficiencies and experience.\"\n}`\n          }\n        ]\n      }\n    ]\n  })\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        912,
+        64
+      ],
+      "id": "ee004e75-bab3-4803-a7cf-b61ec60cca1d",
+      "name": "AI ATS Evaluator"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "candidates",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Insert Candidate').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "ats_score",
+              "fieldValue": "={{ JSON.parse($json.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim()).ats_score }}"
+            },
+            {
+              "fieldId": "classification",
+              "fieldValue": "={{ JSON.parse($json.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim()).classification }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        64
+      ],
+      "id": "b16aa880-4f24-423c-a2fe-da61450e2393",
+      "name": "Update ATS Evaluation"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Form Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Form Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Applications Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Email Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Form Data": {
+      "main": [
+        [
+          {
+            "node": "Insert Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Email Data": {
+      "main": [
+        [
+          {
+            "node": "Insert Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Candidate": {
+      "main": [
+        [
+          {
+            "node": "Send Acknowledgment Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Acknowledgment Email": {
+      "main": [
+        [
+          {
+            "node": "AI ATS Evaluator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI ATS Evaluator": {
+      "main": [
+        [
+          {
+            "node": "Update ATS Evaluation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,368 @@
+{
+  "name": "DevSynt Hiring - Workflow 2: Routing & Assessment Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "3724f206-799e-4976-82cb-8fabe3232885",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "candidates",
+        "returnAll": true,
+        "orderBy": "created_at.asc",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "pending_review"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "74ffa83f-eba9-4334-9891-7263c4b2a55a",
+      "name": "Get many rows"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.classification }}",
+                    "rightValue": "Strong",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "28e362b2-8e62-4ab0-8b5d-00488c096d35"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Strong"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7a34ebe3-8275-4318-baef-937ae1b845ec",
+                    "leftValue": "={{ $json.classification }}",
+                    "rightValue": "Average",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Average"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "07aefc1b-1692-44ed-8e51-bfbcba5acac7",
+                    "leftValue": "={{ $json.classification }}",
+                    "rightValue": "Weak",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Weak"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "a85b3314-f44b-4930-b46a-7af7ff55a9cc",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Next Steps: Technical Assessment for {{ $json.role_applied }} at DevSynt",
+        "message": "=<div style=\"font-family: Arial, sans-serif; line-height: 1.6; color: #222;\">   <h2>Congratulations, {{ $json.name }}!</h2>   <p>Our talent acquisition team has completed the initial review of your application for the <strong>{{ $json.role_applied }}</strong> role.</p>   <p>Based on your profile and ATS screening score (<strong>{{ $json.ats_score }}/100</strong>), we would love to invite you to the next stage: the <strong>Technical Assessment</strong>.</p>   <p>Please complete your assessment within 48 hours using the link below:</p>   <p><a href=\"https://assessment.devsynt.com/take?candidate={{ $json.id }}\" style=\"background-color: #0066cc; color: white; padding: 10px 18px; text-decoration: none; border-radius: 4px; display: inline-block;\">Start Technical Assessment</a></p>   <br>   <p>Best regards,</p>   <p><strong>DevSynt Engineering Hiring Team</strong></p> </div>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        624,
+        -112
+      ],
+      "id": "3d1e6ec5-e8ce-4fb4-bdfd-412f5ecafc79",
+      "name": "Send Assessment Invite"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "candidates",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Switch').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "notified"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        832,
+        -112
+      ],
+      "id": "5749ff40-26f5-4fe5-8b17-16ca99b53253",
+      "name": "Update a row"
+    },
+    {
+      "parameters": {
+        "sendTo": "hiring.manager@devsynt.com",
+        "subject": "=[Manual Review Needed]: {{ $json.name }} - {{ $json.role_applied }}",
+        "message": "=<div style=\"font-family: Arial, sans-serif; line-height: 1.6; color: #222;\">   <h3 style=\"color: #d97706;\">Candidate Requires Manual Review</h3>   <p><strong>Candidate Name:</strong> {{ $json.name }}</p>   <p><strong>Role Applied:</strong> {{ $json.role_applied }}</p>   <p><strong>ATS Score:</strong> {{ $json.ats_score }}/100 (Classification: Average)</p>   <p><strong>Candidate Email:</strong> {{ $json.email }}</p>   <br>   <p><strong>Resume Summary / Text:</strong></p>   <blockquote style=\"background: #f4f4f5; padding: 10px; border-left: 4px solid #d97706;\">     {{ $json.resume_text }}   </blockquote>   <p>Please review and update manager notes in Supabase.</p> </div>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        752,
+        48
+      ],
+      "id": "9d5b9ed7-856d-49df-9991-c75022907d59",
+      "name": "Notify HR for Review"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "candidates",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Switch').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "manual_review"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        960,
+        48
+      ],
+      "id": "e80830c5-cda3-4b35-8506-a4439f2bd612",
+      "name": "Update a row1"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Update on your application for {{ $json.role_applied }} at DevSynt",
+        "message": "=<div style=\"font-family: Arial, sans-serif; line-height: 1.6; color: #333;\">   <p>Dear <strong>{{ $json.name }}</strong>,</p>   <p>Thank you for taking the time to apply for the <strong>{{ $json.role_applied }}</strong> role at DevSynt.</p>   <p>After careful review of your application against our current technical requirements, we have decided not to move forward with your candidacy at this time.</p>   <p>We appreciate your interest in DevSynt and wish you the best in your professional journey.</p>   <br>   <p>Best regards,</p>   <p><strong>DevSynt Talent Acquisition Team</strong></p> </div>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        640,
+        208
+      ],
+      "id": "2869d2bd-615b-4be4-9250-81f41647ef9a",
+      "name": "Send Polite Rejection"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "candidates",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Switch').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "notified"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        848,
+        208
+      ],
+      "id": "589c261f-030c-4141-b4cb-d2cc1cddca0f",
+      "name": "Update a row2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Send Assessment Invite",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify HR for Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Polite Rejection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Assessment Invite": {
+      "main": [
+        [
+          {
+            "node": "Update a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify HR for Review": {
+      "main": [
+        [
+          {
+            "node": "Update a row1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Polite Rejection": {
+      "main": [
+        [
+          {
+            "node": "Update a row2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
